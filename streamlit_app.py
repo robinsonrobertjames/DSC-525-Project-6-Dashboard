@@ -6,22 +6,20 @@ import plotly.graph_objects as go
 import json
 
 # Force layout to wide screen mode
-st.set_page_config(layout="wide", page_title="Fairfax County Resource Analysis")
+st.set_page_config(layout="wide")
 
-# Set requested overall page title
-st.title("How Fairfax County Community Resources affect the Vulnerability Index")
+# Set page title and description
+st.title("How Fairfax County Community Resources Affect The Census Vulnerability Index")
 st.markdown("Explore the relationship between public resource availability and socio-economic vulnerability across census tracts.")
 
+# Load and process geospatial data
 @st.cache_data
 def load_and_process_data():
-    # 1. Load vulnerability polygons (Shapefile) & convert to WGS84
     gdf_vuln = gpd.read_file('Vulnerability_Index_Census_Tract_2021.shp').to_crs(epsg=4326)
     gdf_vuln['id'] = gdf_vuln.index.astype(str)
-    
-    # Extract GeoJSON dictionary mapping format for Plotly
+
     geojson_dict = json.loads(gdf_vuln.geometry.to_json())
     
-    # 2. Load community resources (CSV) & convert projection
     df_res = pd.read_csv('all_community_resources.csv')
     gdf_res = gpd.GeoDataFrame(
         df_res, 
@@ -32,11 +30,9 @@ def load_and_process_data():
     gdf_res['latitude'] = gdf_res.geometry.y
     gdf_res['longitude'] = gdf_res.geometry.x
     
-    # 3. Spatial Join: Count resources per census tract
     joined = gpd.sjoin(gdf_res, gdf_vuln, how="inner", predicate="within")
     resource_counts = joined.groupby('GEOID').size().reset_index(name='resource_count')
     
-    # Merge counts back into vulnerability GeoDataFrame (fill tracts with 0 resources)
     gdf_vuln = gdf_vuln.merge(resource_counts, on='GEOID', how='left')
     gdf_vuln['resource_count'] = gdf_vuln['resource_count'].fillna(0).astype(int)
     
@@ -56,9 +52,7 @@ try:
     
     filtered_resources = gdf_resources[gdf_resources['type'].isin(selected_types)]
 
-    # ==========================================
-    # CHART SECTION (ABOVE THE MAP)
-    # ==========================================
+#bar chart
     st.subheader("Resource Distribution vs. Vulnerability Score")
     
     # Sort tracts by vulnerability score for clear trend visualization
@@ -90,9 +84,7 @@ try:
     st.plotly_chart(fig_bar, use_container_width=True)
     st.divider()
 
-    # ==========================================
-    # MAP SECTION
-    # ==========================================
+#map
     st.subheader("Geographic Overlay Map")
 
     fig_map = go.Figure()
